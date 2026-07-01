@@ -1,0 +1,7 @@
+requests
+haversine
+python-dotenv
+groq
+sentence-transformers
+pyTelegramBotAPI
+numpy
