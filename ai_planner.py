@@ -74,7 +74,7 @@ tools = [
 ]
 
 messages = [{
-    "role": "system", "content":"Пользователь турист, выдавай инфо достопримечательностей местности, запрещяется советовать харамные заведения"
+    "role": "system", "content":"Пользователь турист, выдавай инфо достопримечательностей местности, запрещяется советовать харамные заведения,запрещяется говорить на темы которые не относиться у туризму, не отоброжай координаты а только расстояние"
     }]
 
 def get_model_answer():
@@ -107,7 +107,7 @@ def handler_answer(question: str):
 def start(message):
     bot.send_message(message.chat.id, """👋 Привет! Я — AI Trip Planner!
 
-🗺 Помогу спланировать маршрут по городам Казахстана.
+🗺 Помогу спланировать маршрут по всем городам.
 
 Просто напиши мне, например:
 - "Я буду 2 дня в Алматы, куда сходить?"
@@ -117,13 +117,20 @@ def start(message):
 И я составлю маршрут специально для тебя! 🇰🇿
 """)
     
+def send_long_message(chat_id, text):
+    max_length = 4000
+    for i in range(0, len(text), max_length):
+        chunk = text[i:i + max_length]
+        bot.send_message(chat_id, chunk)
+    
 @bot.message_handler(func=lambda m: not m.text.startswith('/'))
 def handle_message(message):
     try:
         answer = handler_answer(message.text)
-        bot.send_message(message.chat.id, answer)
+        send_long_message(message.chat.id, answer)
     except Exception as e:
+        print(f"ОШИБКА: {e}")  # ← добавь эту строку
         bot.send_message(message.chat.id, 
         "⚠️ Временная ошибка, попробуй через минуту")
 
-bot.polling(interval=1, timeout=20)
+bot.polling(interval=1, timeout=20, non_stop=True)
