@@ -90,7 +90,7 @@ def handler_answer(question: str):
     messages.append(user_message)
     message = get_model_answer()
     if message.tool_calls == None:
-         return message
+         pass
     else:
         while message.tool_calls:
             func_name = message.tool_calls[0].function.name
@@ -101,7 +101,7 @@ def handler_answer(question: str):
             messages.append(message)
             messages.append(message_user)
             message = get_model_answer()
-            return message
+    return message.content
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -120,8 +120,10 @@ def start(message):
 @bot.message_handler(func=lambda m: not m.text.startswith('/'))
 def handle_message(message):
     try:
-        answer = handle_message(message.text, message.chat.id)
+        answer = handler_answer(message.text)
         bot.send_message(message.chat.id, answer)
     except Exception as e:
         bot.send_message(message.chat.id, 
         "⚠️ Временная ошибка, попробуй через минуту")
+
+bot.polling(interval=1, timeout=20)
