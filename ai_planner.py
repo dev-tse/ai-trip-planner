@@ -86,7 +86,12 @@ def get_model_answer():
     return response.choices[0].message
 
 def handler_answer(question: str):
-    user_message = { "role": "user", "content": f'{question}'}
+    global messages
+    messages = [{
+        "role": "system",
+        "content": "Пользователь турист, выдавай инфо достопримечательностей местности, запрещяется советовать харамные заведения"
+    }]
+    user_message = {"role": "user", "content": question}
     messages.append(user_message)
     message = get_model_answer()
     if message.tool_calls == None:
