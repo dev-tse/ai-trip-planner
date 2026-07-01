@@ -5,10 +5,12 @@ from groq import Groq
 from sentence_transformers import SentenceTransformer
 import os
 import json
+import telebot
 
 load_dotenv()
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 model = SentenceTransformer('all-MiniLM-L6-v2')
+bot = telebot.TeleBot(os.getenv('TELEGRAM_BOT_TOKEN'))
 
 def search_places(query):
     query_param = query.replace(" ", "+")
@@ -24,10 +26,6 @@ def get_distance(place1: dict, place2: dict):
     second_place = (float(place2["lat"]), float(place2["lon"]))
     distance_km = haversine(first_place, second_place, unit=Unit.KILOMETERS)
     return f'{distance_km:.2f} km'
-
-# place1 = search_places("Артем Астана")[0] 
-# place2 = search_places("Мега Астана")[0]
-# distance = get_distance(place1, place2)  
 
 available_functions = {
     "search_places": search_places,
@@ -78,8 +76,7 @@ tools = [
 messages = [{
     "role": "system", "content":"Пользователь турист, выдавай инфо достопримечательностей местности, запрещяется советовать харамные заведения"
     }]
-user_message = { "role": "user", "content":"Я буду два дня в Караганде, куда сходить?"}
-messages.append(user_message)
+
 def get_model_answer():
     response = client.chat.completions.create(
         model="openai/gpt-oss-120b",
@@ -88,17 +85,43 @@ def get_model_answer():
     )
     return response.choices[0].message
 
-message = get_model_answer()
-if message.tool_calls == None:
-    print(message)
-else:
-    while message.tool_calls:
-        func_name = message.tool_calls[0].function.name
-        func_argument = json.loads(message.tool_calls[0].function.arguments)
-        real_func = available_functions[func_name]
-        result = real_func(**func_argument)
-        message_user = {"role": "tool", "content": result, "tool_call_id": message.tool_calls[0].id}
-        messages.append(message)
-        messages.append(message_user)
-        message = get_model_answer()
-        print(message)
+def handler_answer(question: str):
+    user_message = { "role": "user", "content": f'{question}'}
+    messages.append(user_message)
+    message = get_model_answer()
+    if message.tool_calls == None:
+         return message
+    else:
+        while message.tool_calls:
+            func_name = message.tool_calls[0].function.name
+            func_argument = json.loads(message.tool_calls[0].function.arguments)
+            real_func = available_functions[func_name]
+            result = real_func(**func_argument)
+            message_user = {"role": "tool", "content": result, "tool_call_id": message.tool_calls[0].id}
+            messages.append(message)
+            messages.append(message_user)
+            message = get_model_answer()
+            return message
+
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.send_message(message.chat.id, """👋 Привет! Я — AI Trip Planner!
+
+🗺 Помогу спланировать маршрут по городам Казахстана.
+
+Просто напиши мне, например:
+- "Я буду 2 дня в Алматы, куда сходить?"
+- "Что посмотреть в Астане за 1 день с семьёй?"
+- "Куда сходить в Шымкенте без машины?"
+
+И я составлю маршрут специально для тебя! 🇰🇿
+""")
+    
+@bot.message_handler(func=lambda m: not m.text.startswith('/'))
+def handle_message(message):
+    try:
+        answer = handle_message(message.text, message.chat.id)
+        bot.send_message(message.chat.id, answer)
+    except Exception as e:
+        bot.send_message(message.chat.id, 
+        "⚠️ Временная ошибка, попробуй через минуту")
